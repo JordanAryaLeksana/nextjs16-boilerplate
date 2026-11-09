@@ -1,9 +1,46 @@
-<!-- BEGIN:nextjs-agent-rules -->
 
-## This is NOT the Next.js you know
+## Frontend Architecture
 
-This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+- Use npm only.
+- Follow Next.js App Router conventions.
+- Keep routing and page composition inside `src/app`.
+- Keep business logic inside `src/features/<feature>`.
+- Keep reusable UI primitives inside `src/components/ui`.
+- Keep shared UI compositions inside `src/components/shared`.
+- Keep shared infrastructure inside `src/lib`.
+- Use Axios for HTTP requests.
+- Use TanStack Query for server state.
+- Use Zustand for client state when needed.
+- Use React Hook Form, Zod, and shadcn/ui Field for forms.
 
-This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+## Coding Style
 
-<!-- END:nextjs-agent-rules -->
+- Prefer readable, straightforward TypeScript.
+- Keep related logic together in cohesive files.
+- Avoid unnecessary wrappers, factories, and abstractions.
+- Write configuration inline when it is used only once.
+- Preserve raw backend error responses for debugging.
+- Do not introduce new dependencies without approval.
+- Reuse existing components and project conventions.
+- Inspect the affected files before editing.
+- Do not commit, push, or perform destructive operations without approval.
+
+## MCP Usage
+
+- Use Next.js DevTools for runtime errors and route inspection.
+- Use shadcn MCP for component discovery and registry documentation.
+- Prefer documentation and text-based diagnostics.
+- Do not use Playwright or capture screenshots by default.
+- Do not generate browser videos or traces unless requested.
+- Keep tool responses focused and concise.
+
+## Verification
+
+Run relevant checks after making code changes:
+
+- `npm run lint`
+- `npm run typecheck`
+- `npm run format:check`
+- `npm run build`
+
+Report failures accurately. Do not claim a check passed unless it was executed successfully.

@@ -1,0 +1,9 @@
+
+.next/
+out/
+dist/
+coverage/
+playwright-report/
+test-results/
+package-lock.json
+next-env.d.ts
