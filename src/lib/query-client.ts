@@ -56,5 +56,5 @@ export type QueryConfig<T extends (...args: never[]) => object> = Omit<
 export type MutationConfig<Fn extends AsyncFn> = UseMutationOptions<
   ApiFnReturnType<Fn>,
   Error,
-  Parameters<Fn>[0]
+  Parameters<Fn> extends [] ? void : Parameters<Fn>[0]
 >;

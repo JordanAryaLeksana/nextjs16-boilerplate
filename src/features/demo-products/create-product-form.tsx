@@ -1,10 +1,7 @@
-
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
-import { z } from "zod";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -16,27 +13,21 @@ import {
 import { Input } from "@/components/ui/input";
 import { getHttpErrorDetails } from "@/lib/axios";
 
-import { productMutations } from "./api";
-
-// Schema
-const productSchema = z.object({
-  name: z.string().trim().min(2, "Name must contain at least 2 characters"),
-  price: z.number().int().positive("Price must be greater than 0"),
-});
-
-type ProductFormValues = z.infer<typeof productSchema>;
+import {
+  createProductSchema,
+  useCreateProduct,
+  type CreateProductInput,
+} from "./api";
 
 // Form
 export function CreateProductForm() {
-  const queryClient = useQueryClient();
-
   const {
     register,
     handleSubmit,
     reset,
     formState: { errors },
-  } = useForm<ProductFormValues>({
-    resolver: zodResolver(productSchema),
+  } = useForm<CreateProductInput>({
+    resolver: zodResolver(createProductSchema),
     defaultValues: {
       name: "",
       price: 150000,
@@ -44,14 +35,9 @@ export function CreateProductForm() {
   });
 
   // Mutation
-  const createProduct = useMutation({
-    ...productMutations.create(),
-    onSuccess: async () => {
-      reset();
-
-      await queryClient.invalidateQueries({
-        queryKey: ["demo-products"],
-      });
+  const createProduct = useCreateProduct({
+    mutationConfig: {
+      onSuccess: () => reset(),
     },
   });
 
@@ -71,9 +57,7 @@ export function CreateProductForm() {
         <FieldGroup>
           {/* Name */}
           <Field data-invalid={!!errors.name}>
-            <FieldLabel htmlFor="product-name">
-              Product Name
-            </FieldLabel>
+            <FieldLabel htmlFor="product-name">Product Name</FieldLabel>
 
             <Input
               id="product-name"
@@ -93,9 +77,7 @@ export function CreateProductForm() {
 
           {/* Price */}
           <Field data-invalid={!!errors.price}>
-            <FieldLabel htmlFor="product-price">
-              Price (IDR)
-            </FieldLabel>
+            <FieldLabel htmlFor="product-price">Price (IDR)</FieldLabel>
 
             <Input
               id="product-price"
@@ -103,7 +85,9 @@ export function CreateProductForm() {
               min={1}
               step={1}
               aria-invalid={!!errors.price}
-              aria-describedby={errors.price ? "product-price-error" : undefined}
+              aria-describedby={
+                errors.price ? "product-price-error" : undefined
+              }
               {...register("price", { valueAsNumber: true })}
             />
 
@@ -129,11 +113,11 @@ export function CreateProductForm() {
 
       {errorDetails && (
         <div role="alert" className="space-y-2">
-          <p className="text-destructive text-sm">
+          <p className="text-sm text-destructive">
             Failed to create product (HTTP {errorDetails.status ?? "N/A"}).
           </p>
 
-          <pre className="bg-muted overflow-x-auto rounded-md p-3 text-xs whitespace-pre-wrap">
+          <pre className="overflow-x-auto rounded-md bg-muted p-3 text-xs whitespace-pre-wrap">
             {JSON.stringify(
               errorDetails.data ?? {
                 message: createProduct.error?.message,

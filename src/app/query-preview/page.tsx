@@ -1,21 +1,20 @@
 "use client";
 
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
 
 import Typography from "@/components/shared/typography";
 import { Button } from "@/components/ui/button";
-import { productQueries } from "@/features/demo-products/api";
-import { CreateProductForm } from "../../features/demo-products/create-product-form";
+import { useProducts } from "@/features/demo-products/api";
+import { CreateProductForm } from "@/features/demo-products/create-product-form";
 import { getHttpErrorDetails } from "@/lib/axios";
 
 export default function QueryPreviewPage() {
   const [simulateError, setSimulateError] = useState(false);
 
   // Query
-  const { data, error, isPending, isError, isFetching, refetch } = useQuery(
-    productQueries.list(simulateError),
-  );
+  const { data, error, isPending, isError, isFetching, refetch } = useProducts({
+    simulateError,
+  });
 
   // Error Details
   const errorDetails = isError ? getHttpErrorDetails(error) : null;

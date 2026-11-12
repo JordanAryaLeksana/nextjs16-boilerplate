@@ -1,9 +1,13 @@
 import axios from "axios";
 
 // Configuration & Types
-type AccessTokenGetter = () => string | null | undefined;
+type ApiAuth = {
+  getAccessToken: () => string | null | undefined;
+  refreshAccessToken: () => Promise<string | null>;
+};
+
 const apiBaseURL = process.env.NEXT_PUBLIC_API_BASE_URL || "/api";
-let getAccessToken: AccessTokenGetter | null = null;
+let apiAuth: ApiAuth | null = null;
 
 // Axios Instance
 export const apiClient = axios.create({
@@ -17,12 +21,12 @@ export const apiClient = axios.create({
 });
 
 // Access Token Management
-export function setAccessTokenGetter(getter: AccessTokenGetter | null) {
+export function setApiAuth(auth: ApiAuth | null) {
   if (typeof window === "undefined") {
-    throw new Error("Token provider is browser-only.");
+    throw new Error("API auth is browser-only.");
   }
 
-  getAccessToken = getter;
+  apiAuth = auth;
 }
 
 // Request Interceptor
@@ -76,7 +80,7 @@ apiClient.interceptors.request.use((config) => {
 
   // Attach Bearer Token when available
   if (!config.headers.has("Authorization")) {
-    const token = getAccessToken?.();
+    const token = apiAuth?.getAccessToken();
 
     if (token) {
       config.headers.set("Authorization", `Bearer ${token}`);
@@ -84,6 +88,31 @@ apiClient.interceptors.request.use((config) => {
   }
 
   return config;
+});
+
+// Response Interceptor
+// On 401, renew the access token once and repeat the request.
+apiClient.interceptors.response.use(undefined, async (error: unknown) => {
+  if (
+    typeof window === "undefined" ||
+    !apiAuth ||
+    !axios.isAxiosError(error) ||
+    error.response?.status !== 401 ||
+    !error.config
+  ) {
+    throw error;
+  }
+
+  const token = await apiAuth.refreshAccessToken().catch(() => null);
+
+  if (!token) {
+    throw error;
+  }
+
+  error.config.headers.set("Authorization", `Bearer ${token}`);
+
+  // Plain axios skips these interceptors, so a second 401 cannot loop.
+  return axios.request(error.config);
 });
 
 // Error Utilities

@@ -1,6 +1,6 @@
 import type * as React from "react";
 
-import { cn } from "@/lib/cn";
+import { cn } from "cn";
 
 export const typographyStyles = {
   variants: {
@@ -23,12 +23,12 @@ export const typographyStyles = {
 } as const;
 
 type TypographyVariant = keyof typeof typographyStyles.variants;
-type Typographysize = keyof typeof typographyStyles.sizes;
+type TypographySize = keyof typeof typographyStyles.sizes;
 
 export type TypographyProps<T extends React.ElementType = "p"> = {
   as?: T;
   variant?: TypographyVariant;
-  size?: Typographysize;
+  size?: TypographySize;
   className?: string;
   children: React.ReactNode;
 } & Omit<
@@ -36,7 +36,7 @@ export type TypographyProps<T extends React.ElementType = "p"> = {
   "as" | "variant" | "size" | "className" | "children"
 >;
 
-export default function Typogprahy<T extends React.ElementType = "p">({
+export default function Typography<T extends React.ElementType = "p">({
   as,
   variant = "paragraph",
   size = "base",

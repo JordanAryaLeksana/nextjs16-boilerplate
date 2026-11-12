@@ -1,4 +1,3 @@
-
 ---
 name: feature-development
 description: Plan, implement, or refactor features according to the current project's architecture, conventions, and dependencies. Use when developing or modifying application features.
@@ -92,6 +91,7 @@ For this project, available checks include:
 Run focused tests when available.
 
 Report:
+
 - What changed.
 - Why the approach fits the project.
 - Which checks passed or failed.
