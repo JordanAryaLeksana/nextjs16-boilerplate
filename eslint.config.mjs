@@ -12,6 +12,11 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Agent skills and tool output (third-party scripts live here):
+    ".agents/**",
+    ".claude/**",
+    ".impeccable/**",
+    ".playwright-cli/**",
   ]),
 ]);
 

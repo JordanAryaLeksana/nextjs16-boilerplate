@@ -1,6 +1,5 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 
 import Typography from "@/components/shared/typography";
@@ -9,25 +8,20 @@ import { useLogout, useSession } from "@/features/auth/api";
 
 // Example of a page that needs a session (see src/proxy.ts).
 export default function DashboardPage() {
-  const router = useRouter();
-
   // Query
   const { data: session, isPending, isError } = useSession();
 
   // Mutation
-  const logout = useLogout({
-    mutationConfig: {
-      onSuccess: () => router.replace("/login"),
-    },
-  });
+  const logout = useLogout();
 
   // The proxy only checks that the cookie exists. A session the backend no
-  // longer accepts resolves to null here.
+  // longer accepts resolves to null here. A full page load drops everything
+  // the previous user left in memory.
   useEffect(() => {
     if (session === null) {
-      router.replace("/login");
+      window.location.replace("/login");
     }
-  }, [session, router]);
+  }, [session]);
 
   return (
     <main className="mx-auto flex min-h-screen max-w-3xl flex-col gap-8 px-6 py-16">

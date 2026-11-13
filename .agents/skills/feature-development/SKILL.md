@@ -39,6 +39,11 @@ For this Next.js boilerplate:
 - src/components/shared: shared UI compositions.
 - src/lib: common infrastructure and utilities.
 
+Reference implementations to copy from:
+
+- src/features/demo-products: a query, a mutation, and a form.
+- src/features/auth: session, sign in, sign out, and OAuth.
+
 Adapt file organization to the complexity of each feature.
 
 Do not create folders or layers that have no practical purpose.
@@ -58,7 +63,30 @@ Do not duplicate server state into client stores.
 
 Add Providers, hooks, schemas, and other abstractions only when justified by the feature.
 
-## 5. Implementation Standards
+## 5. Data Fetching Pattern
+
+Each feature keeps its server communication in `src/features/<feature>/api.ts`. For every endpoint that file has:
+
+1. A request function that calls `apiClient` from `src/lib/axios.ts` and returns typed data.
+2. For a query, a `get<Name>QueryOptions` function built with `queryOptions`.
+3. A hook (`use<Name>`) whose options are typed with `QueryConfig` or `MutationConfig` from `src/lib/query-client.ts`.
+
+Rules:
+
+- Pages and components import the hook. They do not import `@tanstack/react-query`.
+- A mutation hook invalidates the queries it affects, then calls the caller's `onSuccess`.
+- The Zod schema for a form lives in `api.ts` next to the mutation it feeds, and the input type is inferred from it.
+- Pass the `signal` from the query function to the request, so cancelled queries cancel the request.
+- Show failures with `getHttpErrorDetails` so the backend's own response stays visible.
+
+## 6. Authentication
+
+- Read the signed-in user with `useSession` from `src/features/auth/api.ts`.
+- Never read, store, or pass tokens in feature code. `apiClient` attaches the access token and renews it on 401.
+- A page that needs a session is added to the matcher in `src/proxy.ts`.
+- Backend-specific auth details belong only in the "Backend Contract" section of `src/features/auth/session.ts`.
+
+## 7. Implementation Standards
 
 - Keep code readable, maintainable, and type-safe.
 - Prefer cohesive files over unnecessary fragmentation.
@@ -69,15 +97,16 @@ Add Providers, hooks, schemas, and other abstractions only when justified by the
 - Consider accessibility and responsive behavior.
 - Avoid unrelated refactors.
 
-## 6. Use Tools Purposefully
+## 8. Use Tools Purposefully
 
 - Use Next.js DevTools for relevant runtime diagnostics.
 - Use shadcn MCP when inspecting or adding UI components.
-- Use documentation tools when API compatibility is uncertain.
-- Avoid screenshots, videos, and browser automation unless necessary.
+- Use Context7 when the API of another library is uncertain.
+- Use the `playwright-cli` skill to check a user flow in the browser when a change affects one.
+- Use the `impeccable` skill for design critique, audits, and polish.
 - Keep tool output concise and relevant.
 
-## 7. Verify and Report
+## 9. Verify and Report
 
 Run checks relevant to the changes.
 
@@ -87,8 +116,7 @@ For this project, available checks include:
 - npm run typecheck
 - npm run format:check
 - npm run build
-
-Run focused tests when available.
+- npm run test:auth (when auth, `src/lib/axios.ts`, or `src/proxy.ts` changed)
 
 Report:
 

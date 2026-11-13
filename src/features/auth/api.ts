@@ -29,21 +29,20 @@ export type Session = {
 };
 
 // Session Endpoints (src/app/api/auth/[action]/route.ts)
-// The refresh token stays in an httpOnly cookie that only these endpoints
-// read. The browser keeps the access token in memory, inside the session query.
+// Both tokens stay in an httpOnly cookie that only these endpoints read. The
+// browser keeps a copy of the access token in memory, inside the session query.
 const authClient = axios.create({ baseURL: "/api/auth", timeout: 10_000 });
 
-// Get Session
-let refreshRequest: Promise<Session | null> | null = null;
-
-// Refresh tokens are single-use. The Web Lock keeps other tabs from refreshing
-// at the same moment; a missing or rejected session resolves to null.
-async function requestRefresh(): Promise<Session | null> {
-  const post = () => authClient.post<Session>("/refresh");
+// Refresh tokens are single-use, so session requests must not overlap. The Web
+// Lock queues them across tabs. A missing or rejected session resolves to null.
+async function requestSession(
+  path: "/session" | "/refresh",
+): Promise<Session | null> {
+  const post = () => authClient.post<Session>(path);
 
   try {
     const { data } = await ("locks" in navigator
-      ? navigator.locks.request("auth-refresh", post)
+      ? navigator.locks.request("auth-session", post)
       : post());
 
     return data;
@@ -56,24 +55,30 @@ async function requestRefresh(): Promise<Session | null> {
   }
 }
 
-// Callers in this tab share one request.
-export function refreshSession(): Promise<Session | null> {
-  if (!refreshRequest) {
-    refreshRequest = requestRefresh().finally(() => {
-      refreshRequest = null;
-    });
-  }
+// Cross-Tab Sync
+// Other tabs reload when the session changes here, so no tab keeps working as
+// a user who has signed out or been replaced.
+let sessionChannel: BroadcastChannel | null = null;
 
-  return refreshRequest;
+function getSessionChannel() {
+  sessionChannel ??= new BroadcastChannel("auth-session");
+
+  return sessionChannel;
 }
 
+export function watchSessionChanges() {
+  getSessionChannel().onmessage = () => window.location.reload();
+}
+
+// Get Session
 export function getSessionQueryOptions() {
   return queryOptions({
     queryKey: ["auth", "session"],
-    queryFn: refreshSession,
+    queryFn: () => requestSession("/session"),
     // Renewed by the 401 interceptor, not by refetching.
     staleTime: Infinity,
     gcTime: Infinity,
+    retry: false,
   });
 }
 
@@ -89,17 +94,37 @@ export function useSession({ queryConfig }: UseSessionOptions = {}) {
 }
 
 // API Auth (registered with apiClient in src/app/providers.tsx)
-export function getAccessToken() {
-  return getQueryClient().getQueryData(getSessionQueryOptions().queryKey)
-    ?.accessToken;
-}
-
-export async function refreshAccessToken() {
-  const session = await refreshSession();
-
-  getQueryClient().setQueryData(getSessionQueryOptions().queryKey, session);
+// Waits for the session on the first request, so requests made while the page
+// loads carry a token instead of failing with 401.
+export async function getAccessToken() {
+  const session = await getQueryClient().ensureQueryData(
+    getSessionQueryOptions(),
+  );
 
   return session?.accessToken ?? null;
+}
+
+// Called when the backend rejects the access token. Requests that fail
+// together share one renewal.
+let renewal: Promise<string | null> | null = null;
+
+export function refreshAccessToken(): Promise<string | null> {
+  if (!renewal) {
+    renewal = requestSession("/refresh")
+      .then((session) => {
+        getQueryClient().setQueryData(
+          getSessionQueryOptions().queryKey,
+          session,
+        );
+
+        return session?.accessToken ?? null;
+      })
+      .finally(() => {
+        renewal = null;
+      });
+  }
+
+  return renewal;
 }
 
 // Login
@@ -129,22 +154,40 @@ export function useLogin({ mutationConfig }: UseLoginOptions = {}) {
     mutationFn: login,
     onSuccess: async (...args) => {
       queryClient.setQueryData(getSessionQueryOptions().queryKey, args[0]);
+      getSessionChannel().postMessage("changed");
+
       await onSuccess?.(...args);
     },
   });
 }
 
 // OAuth Login
-// The backend runs the OAuth 2.0 flow itself: the browser opens this URL, and
-// the backend sends it back to /oauth-success with the result in the URL
-// fragment (#refresh_token=... or #error=...).
-export function getOAuthLoginUrl(provider: "google") {
-  return apiClient.getUri({ url: `/auth/${provider}` });
+// The backend runs the OAuth 2.0 flow itself: the browser opens its login URL,
+// and the backend sends the browser back to /oauth-success with the result in
+// the URL fragment (#refresh_token=... or #error=...).
+const OAUTH_STARTED_KEY = "oauth-started";
+
+// Marks this tab as having started the login. Without the mark, a link to
+// /oauth-success carrying someone else's token would sign the visitor in to
+// that person's account.
+export function startOAuthLogin(provider: "google") {
+  sessionStorage.setItem(OAUTH_STARTED_KEY, "1");
+
+  window.location.assign(apiClient.getUri({ url: `/auth/${provider}` }));
 }
 
-// Only the refresh token is passed on. The server exchanges it for a new pair,
-// which also invalidates the copy that appeared in the URL.
+// Only the refresh token is passed on, and the server exchanges it for a new
+// pair straight away, so the refresh token that appeared in the URL stops
+// working. The access token from the URL is never used or stored.
 export async function completeOAuth(fragment: string): Promise<Session> {
+  const started = sessionStorage.getItem(OAUTH_STARTED_KEY);
+
+  sessionStorage.removeItem(OAUTH_STARTED_KEY);
+
+  if (!started) {
+    throw new Error("oauth_not_started");
+  }
+
   const params = new URLSearchParams(fragment.replace(/^#/, ""));
   const refreshToken = params.get("refresh_token");
 
@@ -172,18 +215,22 @@ export function useCompleteOAuth({
     mutationFn: completeOAuth,
     onSuccess: async (...args) => {
       queryClient.setQueryData(getSessionQueryOptions().queryKey, args[0]);
+      getSessionChannel().postMessage("changed");
+
       await onSuccess?.(...args);
     },
   });
 }
 
 // Logout
+// Queued behind any session request in flight, so a renewal that is still
+// running cannot bring the session back afterwards.
 export async function logout(): Promise<void> {
-  const accessToken = getAccessToken();
+  const post = () => authClient.post("/logout");
 
-  await authClient.post("/logout", null, {
-    headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
-  });
+  await ("locks" in navigator
+    ? navigator.locks.request("auth-session", post)
+    : post());
 }
 
 type UseLogoutOptions = {
@@ -191,21 +238,19 @@ type UseLogoutOptions = {
 };
 
 export function useLogout({ mutationConfig }: UseLogoutOptions = {}) {
-  const queryClient = useQueryClient();
   const { onSuccess, ...restConfig } = mutationConfig ?? {};
 
   return useMutation({
     ...restConfig,
     mutationFn: logout,
     onSuccess: async (...args) => {
-      queryClient.setQueryData(getSessionQueryOptions().queryKey, null);
-
-      // Drop cached responses that belonged to the signed-out user.
-      queryClient.removeQueries({
-        predicate: (query) => query.queryKey[0] !== "auth",
-      });
+      getSessionChannel().postMessage("changed");
 
       await onSuccess?.(...args);
+
+      // A full page load, not a client navigation: it clears the token, every
+      // cached response, and form values that Next.js keeps for visited pages.
+      window.location.replace("/login");
     },
   });
 }

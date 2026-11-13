@@ -1,13 +1,11 @@
-
 [mcp_servers.next-devtools]
 command = "npx"
-args = ["-y", "next-devtools-mcp@latest"]
+args = ["-y", "next-devtools-mcp@0.4.0"]
 
 [mcp_servers.shadcn]
 command = "npx"
-args = ["-y", "shadcn@latest", "mcp"]
+args = ["-y", "shadcn", "mcp"]
 
-[mcp_servers.playwright]
+[mcp_servers.context7]
 command = "npx"
-args = ["-y", "@playwright/mcp@latest"]
-enabled = false
+args = ["-y", "@upstash/context7-mcp@4.7.0"]

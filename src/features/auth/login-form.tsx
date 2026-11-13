@@ -15,12 +15,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { getHttpErrorDetails } from "@/lib/axios";
 
-import {
-  getOAuthLoginUrl,
-  loginSchema,
-  useLogin,
-  type LoginInput,
-} from "./api";
+import { loginSchema, startOAuthLogin, useLogin, type LoginInput } from "./api";
 
 // Form
 export function LoginForm() {
@@ -29,6 +24,7 @@ export function LoginForm() {
   const {
     register,
     handleSubmit,
+    reset,
     formState: { errors },
   } = useForm<LoginInput>({
     resolver: zodResolver(loginSchema),
@@ -41,7 +37,12 @@ export function LoginForm() {
   // Mutation
   const login = useLogin({
     mutationConfig: {
-      onSuccess: () => router.replace("/dashboard"),
+      onSuccess: () => {
+        // Next.js keeps visited pages and their input values in memory, so
+        // the password must not stay in the form.
+        reset();
+        router.replace("/dashboard");
+      },
     },
   });
 
@@ -104,8 +105,12 @@ export function LoginForm() {
           <FieldSeparator>or</FieldSeparator>
 
           {/* OAuth */}
-          <Button asChild variant="outline">
-            <a href={getOAuthLoginUrl("google")}>Continue with Google</a>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => startOAuthLogin("google")}
+          >
+            Continue with Google
           </Button>
         </FieldGroup>
       </form>

@@ -1,4 +1,7 @@
+import axios from "axios";
+
 import {
+  getSession,
   login,
   loginWithRefreshToken,
   logout,
@@ -7,7 +10,7 @@ import {
 import { getHttpErrorDetails } from "@/lib/axios";
 
 // Session Endpoints
-// POST /api/auth/login | oauth | refresh | logout
+// POST /api/auth/login | oauth | session | refresh | logout
 export async function POST(
   request: Request,
   { params }: { params: Promise<{ action: string }> },
@@ -22,6 +25,18 @@ export async function POST(
     return Response.json(
       { message: "Cross-site request refused" },
       { status: 403 },
+    );
+  }
+
+  // Older browsers send no such label. A cross-site form cannot post JSON, so
+  // requiring it covers the two actions that take a body.
+  if (
+    (action === "login" || action === "oauth") &&
+    !request.headers.get("content-type")?.includes("application/json")
+  ) {
+    return Response.json(
+      { message: "Content-Type must be application/json" },
+      { status: 415 },
     );
   }
 
@@ -60,8 +75,9 @@ export async function POST(
         return Response.json(await loginWithRefreshToken(body.refreshToken));
       }
 
+      case "session":
       case "refresh": {
-        const session = await refresh();
+        const session = await (action === "session" ? getSession() : refresh());
 
         return session
           ? Response.json(session)
@@ -69,12 +85,8 @@ export async function POST(
       }
 
       case "logout": {
-        const accessToken =
-          request.headers.get("authorization")?.replace(/^Bearer /i, "") ??
-          null;
-
         // The cookie is cleared even when the backend cannot be reached.
-        await logout(accessToken).catch(() => undefined);
+        await logout().catch(() => undefined);
 
         return new Response(null, { status: 204 });
       }
@@ -85,9 +97,17 @@ export async function POST(
   } catch (error) {
     const { status, data, code } = getHttpErrorDetails(error);
 
-    // Pass the backend's own error through unchanged.
+    // Pass the backend's own error through unchanged, including how long to
+    // wait when it is rate limiting.
     if (status) {
-      return Response.json(data ?? null, { status });
+      const retryAfter = axios.isAxiosError(error)
+        ? (error.response?.headers["retry-after"] as string | undefined)
+        : undefined;
+
+      return Response.json(data ?? null, {
+        status,
+        headers: retryAfter ? { "Retry-After": retryAfter } : undefined,
+      });
     }
 
     return Response.json(

@@ -2,7 +2,7 @@ import axios from "axios";
 
 // Configuration & Types
 type ApiAuth = {
-  getAccessToken: () => string | null | undefined;
+  getAccessToken: () => Promise<string | null>;
   refreshAccessToken: () => Promise<string | null>;
 };
 
@@ -30,7 +30,7 @@ export function setApiAuth(auth: ApiAuth | null) {
 }
 
 // Request Interceptor
-apiClient.interceptors.request.use((config) => {
+apiClient.interceptors.request.use(async (config) => {
   const url = config.url ?? "";
 
   // Validate trusted API destination
@@ -80,7 +80,8 @@ apiClient.interceptors.request.use((config) => {
 
   // Attach Bearer Token when available
   if (!config.headers.has("Authorization")) {
-    const token = apiAuth?.getAccessToken();
+    // A session that cannot be loaded must not block public requests.
+    const token = await apiAuth?.getAccessToken().catch(() => null);
 
     if (token) {
       config.headers.set("Authorization", `Bearer ${token}`);
