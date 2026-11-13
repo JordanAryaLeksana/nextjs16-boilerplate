@@ -1,12 +1,15 @@
 import axios from "axios";
 
+import { env } from "@/lib/env";
+
 // Configuration & Types
 type ApiAuth = {
   getAccessToken: () => Promise<string | null>;
   refreshAccessToken: () => Promise<string | null>;
 };
 
-const apiBaseURL = process.env.NEXT_PUBLIC_API_BASE_URL || "/api";
+// Without a backend URL, requests go to this app's own /api routes.
+const apiBaseURL = env.NEXT_PUBLIC_API_BASE_URL ?? "/api";
 let apiAuth: ApiAuth | null = null;
 
 // Axios Instance
@@ -72,7 +75,7 @@ apiClient.interceptors.request.use(async (config) => {
   }
 
   // Optional client identifier
-  const clientCode = process.env.NEXT_PUBLIC_CLIENT_CODE;
+  const clientCode = env.NEXT_PUBLIC_CLIENT_CODE;
 
   if (clientCode && !config.headers.has("X-Client-Code")) {
     config.headers.set("X-Client-Code", clientCode);

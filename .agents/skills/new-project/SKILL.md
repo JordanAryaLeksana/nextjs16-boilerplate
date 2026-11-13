@@ -21,13 +21,13 @@ Get these answers before changing files. Do not guess them.
 
 - `package.json`: set `name`.
 - `src/app/layout.tsx`: set the `metadata` title and description, and `lang`.
-- `README.md`: replace the starter text with the project's own.
-- `src/app/page.tsx`: replace the placeholder home page.
-- `public/`: delete the starter SVGs that nothing uses any more.
+- `README.md`: rewrite it for the project. Keep the sections that still apply.
+- `src/app/page.tsx`: replace the starter index with the real home page.
 
 ## 3. Environment
 
 - Copy `.env.example` to `.env.local` and set `NEXT_PUBLIC_API_BASE_URL`.
+- New variables go in three places: the schema in `src/lib/env.ts`, `.env.example`, and the table in `README.md`.
 - Add a line to AGENTS.md saying where the backend contract lives, so later work reads the contract instead of guessing.
 
 ## 4. Sign In

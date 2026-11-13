@@ -8,6 +8,7 @@ import {
   refresh,
 } from "@/features/auth/session";
 import { getHttpErrorDetails } from "@/lib/axios";
+import { env } from "@/lib/env";
 
 // Session Endpoints
 // POST /api/auth/login | oauth | session | refresh | logout
@@ -37,6 +38,20 @@ export async function POST(
     return Response.json(
       { message: "Content-Type must be application/json" },
       { status: 415 },
+    );
+  }
+
+  // Signing in needs a backend. Say so plainly when none is configured.
+  if (
+    (action === "login" || action === "oauth") &&
+    !env.NEXT_PUBLIC_API_BASE_URL
+  ) {
+    return Response.json(
+      {
+        message:
+          "NEXT_PUBLIC_API_BASE_URL is not set, so there is no backend to sign in to.",
+      },
+      { status: 503 },
     );
   }
 

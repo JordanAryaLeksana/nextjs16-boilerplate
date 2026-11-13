@@ -1,6 +1,11 @@
 // Checks for the token handling in src/lib/axios.ts: attaching the access
 // token, and renewing it once when the backend answers 401.
+import { register } from "node:module";
+
 import { credentials } from "./mock-backend.mjs";
+
+// src/lib/axios.ts imports other project files through the "@/" alias.
+register("./resolve-hooks.mjs", import.meta.url);
 
 export async function checkInterceptor({ backend, check }) {
   // The module reads its base URL when it loads, and only attaches tokens in a

@@ -36,6 +36,7 @@
 - Write configuration inline when it is used only once.
 - Preserve raw backend error responses for debugging.
 - Do not introduce new dependencies without approval.
+- Read environment variables through `src/lib/env.ts`. Add new ones to its schema and to `.env.example`.
 - Reuse existing components and project conventions.
 - Inspect the affected files before editing.
 - Do not commit, push, or perform destructive operations without approval.
